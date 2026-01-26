@@ -74,39 +74,41 @@ def get_ai_recipes(ingredients, kitchenware, age_group, people, cuisine):
 
 @app.route('/scan-fridge', methods=['POST'])
 def scan_fridge():
-    if 'image' not in request.files:
-        return jsonify({"ingredients": []}), 400
-        
-    image_file = request.files['image']
-    image_bytes = image_file.read()
-
-    # 定義視覺辨識的提示詞
-    prompt = """
-    分析這張照片中的食材。請識別出照片裡出現的所有蔬菜、肉類、調味料或加工食品。
-    請僅回傳 JSON 格式，包含一個名為 'ingredients' 的陣列。
-    範例回傳: {"ingredients": ["雞蛋", "青花菜", "牛奶"]}
-    """
-
     try:
-        # 使用 Gemini 進行視覺分析
+        if 'image' not in request.files:
+            return jsonify({"error": "未收到圖片"}), 400
+            
+        image_file = request.files['image']
+        image_bytes = image_file.read()
+        
+        # 檢查檔案是否為空
+        if len(image_bytes) == 0:
+            return jsonify({"error": "圖片檔案損壞或為空"}), 400
+
+        # 定義提示詞
+        prompt = "分析這張照片中的食材，列出你看到的所有食物。請僅回傳 JSON 格式，包含一個 'ingredients' 陣列。"
+
+        # 在 2026 年的 SDK 中，我們確保使用正確的視覺 Part 格式
         response = client.models.generate_content(
-            model="gemini-2.0-flash", # Flash 模型支援多模態且反應迅速
+            model="gemini-2.0-flash", 
             contents=[
                 prompt,
                 types.Part.from_bytes(
                     data=image_bytes, 
-                    mime_type=image_file.content_type
+                    mime_type=image_file.content_type or "image/jpeg"
                 )
             ],
-            config={"response_mime_type": "application/json"}
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json"
+            )
         )
         
-        # 回傳辨識結果給前端
-        return response.text
+        return response.text # 這會回傳 Gemini 生成的 JSON 字串
         
     except Exception as e:
-        print(f"視覺辨識失敗: {e}")
-        return jsonify({"ingredients": []}), 500
+        # 關鍵：這行會在 VSCode 終端機顯示到底哪裡出錯
+        print(f"!!! 視覺辨識後端崩潰：{e} !!!")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/')
 def index():
