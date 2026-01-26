@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CookSense AI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-utensils"></i> CookSense AI</h1>
+            <p>AI 智能食譜產生器</p>
+        </header>
+
+        <section class="input-panel">
+            <div class="input-group full-width">
+                <label>冰箱中的食材</label>
+                <div class="ingredient-box">
+                    <input type="text" id="ingredientInput" placeholder="輸入食材 (例如蛋、菠菜)">
+                    <button id="addBtn" onclick="addIngredient()">新增</button>
+                    <button id="cameraBtn" onclick="triggerCamera()"><i class="fas fa-camera"></i> 掃描冰箱</button>
+                </div>
+                <div id="ingredientList" class="tags-container"></div>
+            </div>
+
+            <div class="settings-grid">
+                <div class="input-group">
+                    <label>廚具</label>
+                    <div class="checkbox-group">
+                        <label><input type="checkbox" value="stove" checked> 瓦斯爐</label>
+                        <label><input type="checkbox" value="stove" checked> 電磁爐</label>
+                        <label><input type="checkbox" value="stove" checked> 電鍋</label>
+                        <label><input type="checkbox" value="oven"> 烤箱</label>
+                        <label><input type="checkbox" value="microwave"> 微波爐</label>
+                        <label><input type="checkbox" value="blender"> 果汁機</label>
+                        <label><input type="checkbox" value="air_fryer"> 氣炸鍋</label>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label>食用者</label>
+                    <select id="ageGroup">
+                        <option value="younger">小孩 (口感軟/味道淡)</option>
+                        <option value="adult" selected>成人 (正常)</option>
+                        <option value="older">高年齡者 (低鈉/口感軟)</option>
+                    </select>
+                </div>
+
+                <div class="input-group">
+                    <label>料理風格</label>
+                    <select id="cuisine">
+                        <option value="western">西式</option>
+                        <option value="chinese">中式</option>
+                        <option value="japanese">日式</option>
+                        <option value="italian">義式</option>
+                        <option value="mexican">墨式</option>
+                    </select>
+                </div>
+
+                <div class="input-group">
+                    <label>人數</label>
+                    <input type="number" id="peopleCount" value="2" min="1">
+                </div>
+            </div>
+
+            <button id="generateBtn" onclick="generateRecipes()">用 AI 生成食譜</button>
+        </section>
+
+        <div id="loader" class="hidden">
+            <div class="spinner"></div>
+            <p>生成中...</p>
+        </div>
+
+        <section id="resultsArea" class="results-grid"></section>
+    </div>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
