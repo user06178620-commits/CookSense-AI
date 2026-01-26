@@ -72,6 +72,42 @@ def get_ai_recipes(ingredients, kitchenware, age_group, people, cuisine):
             print(f" - {m.name}")
         return []
 
+@app.route('/scan-fridge', methods=['POST'])
+def scan_fridge():
+    if 'image' not in request.files:
+        return jsonify({"ingredients": []}), 400
+        
+    image_file = request.files['image']
+    image_bytes = image_file.read()
+
+    # 定義視覺辨識的提示詞
+    prompt = """
+    分析這張照片中的食材。請識別出照片裡出現的所有蔬菜、肉類、調味料或加工食品。
+    請僅回傳 JSON 格式，包含一個名為 'ingredients' 的陣列。
+    範例回傳: {"ingredients": ["雞蛋", "青花菜", "牛奶"]}
+    """
+
+    try:
+        # 使用 Gemini 進行視覺分析
+        response = client.models.generate_content(
+            model="gemini-2.0-flash", # Flash 模型支援多模態且反應迅速
+            contents=[
+                prompt,
+                types.Part.from_bytes(
+                    data=image_bytes, 
+                    mime_type=image_file.content_type
+                )
+            ],
+            config={"response_mime_type": "application/json"}
+        )
+        
+        # 回傳辨識結果給前端
+        return response.text
+        
+    except Exception as e:
+        print(f"視覺辨識失敗: {e}")
+        return jsonify({"ingredients": []}), 500
+
 @app.route('/')
 def index():
     return render_template('index.html')

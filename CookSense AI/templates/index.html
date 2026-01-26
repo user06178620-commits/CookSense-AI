@@ -20,7 +20,10 @@
                 <div class="ingredient-box">
                     <input type="text" id="ingredientInput" placeholder="輸入食材 (例如蛋、菠菜)">
                     <button id="addBtn" onclick="addIngredient()">新增</button>
-                    <button id="cameraBtn" onclick="triggerCamera()"><i class="fas fa-camera"></i> 掃描冰箱</button>
+                    <button id="cameraBtn">
+                        <i class="fas fa-camera"></i> 上傳照片
+                    </button>
+                    <input type="file" id="fileInput" accept="image/*" style="display:none">
                 </div>
                 <div id="ingredientList" class="tags-container"></div>
             </div>

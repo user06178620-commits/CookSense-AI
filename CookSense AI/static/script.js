@@ -26,18 +26,62 @@ function removeIngredient(ing) {
     renderTags();
 }
 
-function triggerCamera() {
-    // This is still a simulation because browsers require HTTPS for real camera access
+// --- 監聽器部分：解決 "Cannot read properties of null (reading 'click')" ---
+document.addEventListener('DOMContentLoaded', () => {
+    const cameraBtn = document.getElementById('cameraBtn');
+    const fileInput = document.getElementById('fileInput');
+
+    if (cameraBtn && fileInput) {
+        // 當使用者點擊顯眼的相機按鈕時，觸發隱藏的檔案選擇器
+        cameraBtn.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // 當檔案選擇器偵測到檔案改變（使用者選好了照片）
+        fileInput.addEventListener('change', function() {
+            uploadImage(this); // 呼叫你原本寫好的上傳函式
+        });
+    } else {
+        console.error("錯誤：找不到 ID 為 'cameraBtn' 或 'fileInput' 的元素。請檢查 index.html。");
+    }
+});
+
+// --- 你原本的 uploadImage 函式 (保持不變) ---
+async function uploadImage(input) {
+    if (!input.files || !input.files[0]) return;
+
     const btn = document.getElementById('cameraBtn');
     const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scanning...';
+    
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 辨識中...';
     btn.disabled = true;
-    setTimeout(() => {
-        const foundItems = ["Carrots", "Chicken Breast", "Soy Sauce"];
-        foundItems.forEach(item => addIngredient(item));
+
+    const formData = new FormData();
+    formData.append('image', input.files[0]);
+
+    try {
+        const response = await fetch('/scan-fridge', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) throw new Error("辨識失敗");
+        
+        const data = await response.json();
+        
+        if (data.ingredients && data.ingredients.length > 0) {
+            data.ingredients.forEach(item => addIngredient(item));
+        } else {
+            alert("未能辨識到食材，請再試一次或手動輸入。");
+        }
+    } catch (error) {
+        console.error("辨識錯誤:", error);
+        alert("掃描失敗，請檢查網路連接。");
+    } finally {
         btn.innerHTML = originalText;
         btn.disabled = false;
-    }, 1500);
+        input.value = ''; 
+    }
 }
 
 async function generateRecipes() {
