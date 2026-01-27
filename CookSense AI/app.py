@@ -4,6 +4,8 @@ from flask import Flask, render_template, request, jsonify
 from google import genai
 from google.genai import types # 必須匯入這個來處理設定
 from dotenv import load_dotenv
+from PIL import Image
+import io
 
 app = Flask(__name__)
 load_dotenv()
@@ -75,40 +77,51 @@ def get_ai_recipes(ingredients, kitchenware, age_group, people, cuisine):
 @app.route('/scan-fridge', methods=['POST'])
 def scan_fridge():
     try:
+        # 1. 取得圖片並壓縮
         if 'image' not in request.files:
-            return jsonify({"error": "未收到圖片"}), 400
+            return jsonify({"error": "未收到圖片", "ingredients": []}), 400
             
         image_file = request.files['image']
-        image_bytes = image_file.read()
+        img = Image.open(image_file)
         
-        # 檢查檔案是否為空
-        if len(image_bytes) == 0:
-            return jsonify({"error": "圖片檔案損壞或為空"}), 400
+        # 壓縮處理
+        img.thumbnail((640, 640))
+        img_byte_arr = io.BytesIO()
+        img.save(img_byte_arr, format='JPEG', quality=70)
+        image_bytes = img_byte_arr.getvalue()
 
-        # 定義提示詞
-        prompt = "分析這張照片中的食材，列出你看到的所有食物。請僅回傳 JSON 格式，包含一個 'ingredients' 陣列。"
+        # 2. 呼叫 Gemini 視覺模型
+        prompt = "分析照片中的食材，僅回傳 JSON 陣列：{'ingredients': ['食材1', '食材2']}"
 
-        # 在 2026 年的 SDK 中，我們確保使用正確的視覺 Part 格式
         response = client.models.generate_content(
             model="gemini-2.0-flash", 
             contents=[
                 prompt,
-                types.Part.from_bytes(
-                    data=image_bytes, 
-                    mime_type=image_file.content_type or "image/jpeg"
-                )
+                types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg")
             ],
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json"
-            )
+            config=types.GenerateContentConfig(response_mime_type="application/json")
         )
         
-        return response.text # 這會回傳 Gemini 生成的 JSON 字串
-        
+        # 3. 解析 JSON 回傳值
+        try:
+            # 先嘗試直接解析
+            output = json.loads(response.text)
+            return jsonify(output)
+        except json.JSONDecodeError:
+            # 如果包含 Markdown 語法，清理後再解析
+            clean_text = response.text.replace("```json", "").replace("```", "").strip()
+            return jsonify(json.loads(clean_text))
+            
     except Exception as e:
-        # 關鍵：這行會在 VSCode 終端機顯示到底哪裡出錯
-        print(f"!!! 視覺辨識後端崩潰：{e} !!!")
-        return jsonify({"error": str(e)}), 500
+        # 4. 錯誤處理 (這是唯一的萬能捕捉)
+        error_msg = str(e)
+        print(f"!!! Python 後端報錯：{error_msg} !!!")
+        
+        # 針對配額限制 (429) 給予友善提示
+        if "429" in error_msg:
+            return jsonify({"error": "API 次數達到上限，請等一分鐘後再試一次。", "ingredients": []}), 429
+            
+        return jsonify({"error": "伺服器內部錯誤", "details": error_msg, "ingredients": []}), 500
 
 @app.route('/')
 def index():
