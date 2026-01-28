@@ -1,4 +1,5 @@
 let ingredients = [];
+let savedRecipes = JSON.parse(localStorage.getItem('cooksense_saved')) || [];
 
 const DAILY_INTAKE = {
     'younger': 1800, // 發育期/小孩
@@ -69,6 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
             analyzeFoodCalories(this);
             });
     }
+    updateSavedCount();
 }); 
 
 
@@ -179,15 +181,33 @@ async function generateRecipes() {
     const people = document.getElementById('peopleCount').value;
     const cuisine = document.getElementById('cuisine').value;
     const maxCalories = document.getElementById('maxCalories').value;
+    const difficulty = document.getElementById('difficulty').value; // 確保有抓到值
+    const avoidFoods = document.getElementById('avoidFoods').value; // 新增過敏原
+
+    const loadMoreBtn = document.getElementById('loadMoreBtn');
+    const bodyData = { 
+            ingredients, 
+            kitchenware, 
+            ageGroup, 
+            people, 
+            cuisine, 
+            difficulty, 
+            avoidFoods, // 傳送給後端
+            maxCalories 
+        };
 
     try {
         const response = await fetch('/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ingredients, kitchenware, ageGroup, people, cuisine, maxCalories })
+            body: JSON.stringify(bodyData)
         });
         const recipes = await response.json();
         renderRecipes(recipes);
+        if (loadMoreBtn) {
+            loadMoreBtn.style.display = 'block'; // 直接操作 Style 權重最高
+            loadMoreBtn.classList.remove('hidden');
+        }  
     } catch (error) {
         console.error(error);
         alert("Error generating recipes.");
@@ -210,9 +230,18 @@ function renderRecipes(recipes) {
         const healthyIngs = (recipe.healthy && recipe.healthy.ingredients) ? recipe.healthy.ingredients : [];
         const substitutions = recipe.substitutions || [];
 
+        const isSaved = savedRecipes.some(r => r.id === recipe.id);
+        const saveBtnHtml = `
+            <button class="save-recipe-btn ${isSaved ? 'active' : ''}" 
+                    onclick='toggleSave("${recipe.id}", ${JSON.stringify(recipe).replace(/'/g, "&apos;")})'>
+                <i class="fas fa-heart"></i>
+            </button>
+        `;
+
         const html = `
             <div class="recipe-card">
                 <div class="recipe-header">
+                    ${saveBtnHtml}
                     <h2>${recipe.name || '未命名食譜'}</h2>
                     <div style="color:#666; font-size:0.9em">
                         <i class="fas fa-clock"></i> ${recipe.time || '--'} &nbsp;|&nbsp; 
@@ -250,4 +279,74 @@ function renderRecipes(recipes) {
             </div>`;
         container.innerHTML += html;
     });
+}
+
+function updateSavedCount() {
+    const countEl = document.getElementById('savedCount');
+    if (countEl) {
+        countEl.innerText = savedRecipes.length;
+    }
+}
+
+function toggleSavedRecipes() {
+    const panel = document.getElementById('savedRecipesPanel');
+    if (panel) {
+        panel.classList.toggle('hidden');
+        renderSavedList();
+    }
+}
+
+// 收藏/取消收藏邏輯
+function toggleSave(recipeId, recipeData) {
+    const index = savedRecipes.findIndex(r => r.id === recipeId);
+    
+    if (index === -1) {
+        savedRecipes.push(recipeData);
+        alert('已加入收藏！');
+    } else {
+        savedRecipes.splice(index, 1);
+        alert('已從收藏中移除。');
+    }
+    
+    localStorage.setItem('cooksense_saved', JSON.stringify(savedRecipes));
+    updateSavedCount();
+    
+    // 更新按鈕樣式
+    const btn = document.querySelector(`[onclick*="toggleSave('${recipeId}'"]`);
+    if(btn) btn.classList.toggle('active');
+}
+
+// 渲染收藏清單
+function renderSavedList() {
+    const list = document.getElementById('savedList');
+    if (!list) return;
+    
+    list.innerHTML = savedRecipes.length === 0 ? '<p>目前沒有收藏的食譜。</p>' : '';
+    
+    savedRecipes.forEach(recipe => {
+        const item = document.createElement('div');
+        item.className = 'saved-item';
+        item.style.cssText = 'margin-bottom: 15px; padding: 15px; background: #f9fafb; border-radius: 8px; border-left: 4px solid var(--primary);';
+        item.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: start;">
+                <div>
+                    <strong style="display: block; color: var(--dark);">${recipe.name}</strong>
+                    <small style="color: var(--gray);">${recipe.time} | ${recipe.difficulty}</small>
+                </div>
+                <button onclick="removeSaved('${recipe.id}')" style="color:var(--danger); background:none; padding:0; font-size:1.2rem;">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            </div>
+        `;
+        list.appendChild(item);
+    });
+}
+
+function removeSaved(id) {
+    savedRecipes = savedRecipes.filter(r => r.id !== id);
+    localStorage.setItem('cooksense_saved', JSON.stringify(savedRecipes));
+    updateSavedCount();
+    renderSavedList();
+    const btn = document.querySelector(`[onclick*="toggleSave('${id}'"]`);
+    if(btn) btn.classList.remove('active');
 }

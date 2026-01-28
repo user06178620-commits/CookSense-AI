@@ -12,7 +12,18 @@
         <header>
             <h1><i class="fas fa-utensils"></i> CookSense AI</h1>
             <p>AI 智能食譜產生器</p>
+            <button id="viewSavedBtn" onclick="toggleSavedRecipes()">
+                <i class="fas fa-bookmark"></i> 我的收藏 (<span id="savedCount">0</span>)
+            </button>
         </header>
+
+        <div id="savedRecipesPanel" class="hidden">
+            <div class="panel-content">
+                <h2><i class="fas fa-heart"></i> 已收藏的食譜</h2>
+                <div id="savedList"></div>
+                <button onclick="toggleSavedRecipes()" class="close-btn">關閉</button>
+            </div>
+        </div>
 
         <section class="input-panel">
             <div class="input-group full-width">
@@ -96,6 +107,11 @@
                 <div class="input-group">
                     <label>人數</label>
                     <input type="number" id="peopleCount" value="2" min="1">
+                </div>
+
+                <div class="input-group full-width">
+                    <label><i class="fas fa-exclamation-triangle"></i> 忌口/過敏食材 (例如：花生、海鮮)</label>
+                    <input type="text" id="avoidFoods" placeholder="AI 將會自動避開這些食材">
                 </div>
 
                 <div class="input-group">

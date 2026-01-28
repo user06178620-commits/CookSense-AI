@@ -121,10 +121,39 @@ button {
 }
 
 #loadMoreBtn {
+    display: none; /* 初始隱藏，由 JS 控制 */
+    margin: 40px auto;
+    padding: 15px 40px;
+    background: white;
+    color: var(--primary);
+    border: 2px solid var(--primary);
+    border-radius: 30px;
+    font-weight: bold;
+}
+
+#viewSavedBtn {
     background: var(--white);
     color: var(--primary);
     border: 2px solid var(--primary);
-    margin-top: 30px;
+    margin-top: 15px;
+    padding: 8px 20px;
+}
+
+#savedRecipesPanel {
+    position: fixed;
+    top: 0; right: 0;
+    width: 400px; height: 100%;
+    background: var(--white);
+    box-shadow: -5px 0 15px rgba(0,0,0,0.1);
+    z-index: 1000;
+    padding: 30px;
+    overflow-y: auto;
+    transition: transform 0.3s ease;
+}
+
+#savedRecipesPanel.hidden {
+    transform: translateX(100%);
+    display: block !important; /* 覆蓋原本的 display:none 以便執行過渡 */
 }
 
 /* Tags */
@@ -256,4 +285,22 @@ li { margin-bottom: 8px; }
     animation: spin 1s linear infinite;
     margin: 0 auto 15px auto;
 }
+
+.show-flex {
+    display: flex !important;
+}
+
+.save-recipe-btn {
+    position: absolute;
+    top: 20px; right: 20px;
+    background: transparent;
+    color: var(--gray);
+    font-size: 1.5rem;
+    padding: 0;
+}
+
+.save-recipe-btn.active {
+    color: var(--danger);
+}
+
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }

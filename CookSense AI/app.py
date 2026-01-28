@@ -21,7 +21,7 @@ client = genai.Client(
     http_options={'api_version': 'v1beta'} # 預覽模型需要 beta 路徑
 )
 
-def get_ai_recipes(ingredients, kitchenware, age_group, people, cuisine, difficulty="medium", max_calories=None, avoid_foods=None):
+def get_ai_recipes(ingredients, kitchenware, age_group, people, cuisine, max_calories=None, difficulty="medium", avoid_foods=None):
     if not ingredients:
         return []
 
@@ -36,13 +36,6 @@ def get_ai_recipes(ingredients, kitchenware, age_group, people, cuisine, difficu
     avoid_instruction = f"⚠️ 禁止使用以下食材：{avoid_foods}。即使食材清單有也不准使用。" if avoid_foods else ""
 
     # 處理難度提示詞
-    difficulty_prompt = ""
-    if difficulty == "easy":
-        difficulty_prompt = "食譜必須非常簡單，適合初學者，步驟少且不需複雜技巧。"
-    elif difficulty == "hard":
-        difficulty_prompt = "食譜可以包含複雜的烹飪技巧，適合想要挑戰的大廚，追求精緻口感。"
-    else:
-        difficulty_prompt = "食譜難度適中，適合一般家庭日常烹飪。"
     
     prompt = f"""
     請生成 3 道適合 {people} 人的食譜。
@@ -50,7 +43,8 @@ def get_ai_recipes(ingredients, kitchenware, age_group, people, cuisine, difficu
     廚具：{kitchenware}
     菜系：{cuisine}
     對象：{age_group}
-    難度要求：{difficulty_prompt}
+    難度要求：{target_difficulty} (請務必根據此難度設計步驟)
+    {avoid_instruction}
     {calorie_instruction}
 
     重要要求：
@@ -58,6 +52,7 @@ def get_ai_recipes(ingredients, kitchenware, age_group, people, cuisine, difficu
     2. 請務必返回嚴格格式的 JSON 陣列。
     3. 難度欄位請回傳「簡單」、「中等」或「困難」。
     4. 食材與步驟必須是繁體中文。
+    5. 即使是替換建議也禁止出現：{avoid_foods}。
     
     JSON 結構範例：
     [
@@ -202,8 +197,9 @@ def generate():
         data.get('ageGroup', 'adult'),
         data.get('people', 1),
         data.get('cuisine', 'western'),
-        data.get('difficulty', 'medium'),
-        data.get('maxCalories', None) # 接收新參數
+        data.get('maxCalories', None),
+        difficulty=data.get('difficulty', 'medium'),
+        avoid_foods=data.get('avoidFoods', '') # 接收前端過敏原
     )
     return jsonify(recipes)
 
