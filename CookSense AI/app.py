@@ -21,7 +21,7 @@ client = genai.Client(
     http_options={'api_version': 'v1beta'} # 預覽模型需要 beta 路徑
 )
 
-def get_ai_recipes(ingredients, kitchenware, age_group, people, cuisine, max_calories=None):
+def get_ai_recipes(ingredients, kitchenware, age_group, people, cuisine, difficulty="medium", max_calories=None):
     if not ingredients:
         return []
 
@@ -30,12 +30,22 @@ def get_ai_recipes(ingredients, kitchenware, age_group, people, cuisine, max_cal
     if max_calories and int(max_calories) > 0:
         calorie_instruction = f"每一份的熱量必須嚴格控制在 {max_calories} 大卡以內。"
     
+    # 處理難度提示詞
+    difficulty_prompt = ""
+    if difficulty == "easy":
+        difficulty_prompt = "食譜必須非常簡單，適合初學者，步驟少且不需複雜技巧。"
+    elif difficulty == "hard":
+        difficulty_prompt = "食譜可以包含複雜的烹飪技巧，適合想要挑戰的大廚，追求精緻口感。"
+    else:
+        difficulty_prompt = "食譜難度適中，適合一般家庭日常烹飪。"
+    
     prompt = f"""
     請生成 3 道適合 {people} 人的食譜。
     現有食材：{ingredients}
     廚具：{kitchenware}
     菜系：{cuisine}
     對象：{age_group}
+    難度要求：{difficulty_prompt}
     {calorie_instruction}
 
     重要要求：
@@ -47,7 +57,7 @@ def get_ai_recipes(ingredients, kitchenware, age_group, people, cuisine, max_cal
       {{
         "id": 1,
         "name": "食譜名稱",
-        "difficulty": "簡單",
+        "difficulty": "簡單 ",
         "time": "20分鐘",
         "portions": {people},
         "standard": {{
@@ -96,7 +106,7 @@ def scan_fridge():
         image_bytes = img_byte_arr.getvalue()
 
         # 2. 呼叫 Gemini 視覺模型
-        prompt = "分析照片中的食材，僅回傳 JSON 陣列：{'ingredients': ['食材1', '食材2']}"
+        prompt = "請辨識圖片中的食材。請僅使用繁體中文，回傳格式為：{\"ingredients\": [\"食材1\", \"食材2\"]}"
 
         response = client.models.generate_content(
             model="gemini-2.0-flash", 
@@ -147,6 +157,7 @@ def analyze_calories():
         你是一位營養師。請分析這張照片中的食物：
         1. 辨識食物名稱。
         2. 估算這整份食物的總熱量 (Total Calories)。
+        3. 務必使用繁體中文回答。
         
         請僅回傳此 JSON 格式：
         {
@@ -184,6 +195,7 @@ def generate():
         data.get('ageGroup', 'adult'),
         data.get('people', 1),
         data.get('cuisine', 'western'),
+        data.get('difficulty', 'medium'),
         data.get('maxCalories', None) # 接收新參數
     )
     return jsonify(recipes)

@@ -97,17 +97,34 @@
                     <label>人數</label>
                     <input type="number" id="peopleCount" value="2" min="1">
                 </div>
+
+                <div class="input-group">
+                    <label>烹飪難度</label>
+                    <select id="difficulty">
+                        <option value="easy">簡單 (新手友善)</option>
+                        <option value="medium" selected>中等 (家常料理)</option>
+                        <option value="hard">困難 (大廚挑戰)</option>
+                    </select>
+                </div>
             </div>
 
-            <button id="generateBtn" onclick="generateRecipes()">用 AI 生成食譜</button>
+            <button id="generateBtn" onclick="generateRecipes(false)">
+                <i class="fas fa-magic"></i> 用 AI 生成食譜
+            </button>
         </section>
 
         <div id="loader" class="hidden">
             <div class="spinner"></div>
-            <p>生成中...</p>
+            <p>AI 正在構思食譜...</p>
         </div>
 
         <section id="resultsArea" class="results-grid"></section>
+
+        <div style="text-align: center; margin-bottom: 50px;">
+            <button id="loadMoreBtn" class="hidden" onclick="generateRecipes(true)">
+                <i class="fas fa-plus-circle"></i> 生成更多食譜
+            </button>
+        </div>
     </div>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
