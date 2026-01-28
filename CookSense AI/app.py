@@ -21,7 +21,7 @@ client = genai.Client(
     http_options={'api_version': 'v1beta'} # 預覽模型需要 beta 路徑
 )
 
-def get_ai_recipes(ingredients, kitchenware, age_group, people, cuisine, difficulty="medium", max_calories=None):
+def get_ai_recipes(ingredients, kitchenware, age_group, people, cuisine, difficulty="medium", max_calories=None, avoid_foods=None):
     if not ingredients:
         return []
 
@@ -29,7 +29,12 @@ def get_ai_recipes(ingredients, kitchenware, age_group, people, cuisine, difficu
     calorie_instruction = ""
     if max_calories and int(max_calories) > 0:
         calorie_instruction = f"每一份的熱量必須嚴格控制在 {max_calories} 大卡以內。"
-    
+
+    difficulty_map = {"easy": "簡單 (新手級)", "medium": "中等 (家常級)", "hard": "困難 (大廚級)"}
+    target_difficulty = difficulty_map.get(difficulty, "中等")
+
+    avoid_instruction = f"⚠️ 禁止使用以下食材：{avoid_foods}。即使食材清單有也不准使用。" if avoid_foods else ""
+
     # 處理難度提示詞
     difficulty_prompt = ""
     if difficulty == "easy":
@@ -51,6 +56,8 @@ def get_ai_recipes(ingredients, kitchenware, age_group, people, cuisine, difficu
     重要要求：
     1. 請根據食材的實際熱量進行科學估算，不要隨意填寫數字。
     2. 請務必返回嚴格格式的 JSON 陣列。
+    3. 難度欄位請回傳「簡單」、「中等」或「困難」。
+    4. 食材與步驟必須是繁體中文。
     
     JSON 結構範例：
     [
@@ -148,9 +155,9 @@ def analyze_calories():
         img = Image.open(image_file)
         
         # 壓縮圖片 (為了配額與速度)
-        img.thumbnail((800, 800))
+        img.thumbnail((512, 512))
         img_byte_arr = io.BytesIO()
-        img.save(img_byte_arr, format='JPEG', quality=70)
+        img.save(img_byte_arr, format='JPEG', quality=60)
         image_bytes = img_byte_arr.getvalue()
 
         prompt = """

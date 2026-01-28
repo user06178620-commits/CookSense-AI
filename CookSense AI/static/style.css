@@ -165,6 +165,8 @@ button {
 }
 
 .recipe-card {
+    display: flex;
+    flex-direction: column;
     background: var(--white);
     border-radius: var(--radius);
     overflow: hidden;
