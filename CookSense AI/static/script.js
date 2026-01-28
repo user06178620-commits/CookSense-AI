@@ -1,5 +1,11 @@
 let ingredients = [];
 
+const DAILY_INTAKE = {
+    'younger': 1800, // 發育期/小孩
+    'adult': 2200,   // 成人
+    'older': 1600    // 高齡者
+};
+
 function addIngredient(val = null) {
     const input = document.getElementById('ingredientInput');
     const value = val || input.value.trim();
@@ -44,7 +50,27 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
         console.error("錯誤：找不到 ID 為 'cameraBtn' 或 'fileInput' 的元素。請檢查 index.html。");
     }
-});
+
+    const calBtn = document.getElementById('calCameraBtn');
+    const calInput = document.getElementById('calFileInput');
+    const ageSelect = document.getElementById('ageGroup');
+    const targetDisplay = document.getElementById('targetCal');
+
+    function updateTargetCal() {
+        const age = ageSelect.value;
+        targetDisplay.innerText = DAILY_INTAKE[age];
+    }
+    ageSelect.addEventListener('change', updateTargetCal);
+    updateTargetCal(); // 初始執行一次
+
+    if (calBtn && calInput) {
+        calBtn.addEventListener('click', () => calInput.click());
+        calInput.addEventListener('change', function() {
+            analyzeFoodCalories(this);
+            });
+    }
+}); 
+
 
 // --- 你原本的 uploadImage 函式 (保持不變) ---
 async function uploadImage(input) {
@@ -84,6 +110,62 @@ async function uploadImage(input) {
     }
 }
 
+async function analyzeFoodCalories(input) {
+    if (!input.files || !input.files[0]) return;
+
+    const btn = document.getElementById('calCameraBtn');
+    const originalText = btn.innerHTML;
+    const resultArea = document.getElementById('calResultArea');
+    
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 分析中...';
+    btn.disabled = true;
+    resultArea.classList.add('hidden'); // 先隱藏舊結果
+
+    const formData = new FormData();
+    formData.append('image', input.files[0]);
+
+    try {
+        const response = await fetch('/analyze-calories', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) throw new Error("API 請求失敗");
+        
+        const data = await response.json();
+        
+        // 渲染結果
+        renderCalorieResult(data);
+
+    } catch (error) {
+        console.error(error);
+        alert("無法估算熱量，請稍後再試。");
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        input.value = '';
+    }
+}
+
+function renderCalorieResult(data) {
+    const ageGroup = document.getElementById('ageGroup').value;
+    const dailyLimit = DAILY_INTAKE[ageGroup];
+    const estimated = data.estimated_calories || 0;
+    const remaining = dailyLimit - estimated;
+
+    document.getElementById('foodName').innerText = data.food_name || "未知食物";
+    document.getElementById('calReason').innerText = data.reasoning || "";
+    document.getElementById('foodCal').innerText = estimated;
+    
+    const remainingEl = document.getElementById('remainingCal');
+    remainingEl.innerText = remaining;
+    
+    // 如果超標，變紅色
+    remainingEl.style.color = remaining < 0 ? '#c0392b' : '#27ae60';
+
+    document.getElementById('calResultArea').classList.remove('hidden');
+}
+
 async function generateRecipes() {
     if (ingredients.length === 0) {
         alert("Please add at least one ingredient!");
@@ -96,12 +178,13 @@ async function generateRecipes() {
     const ageGroup = document.getElementById('ageGroup').value;
     const people = document.getElementById('peopleCount').value;
     const cuisine = document.getElementById('cuisine').value;
+    const maxCalories = document.getElementById('maxCalories').value;
 
     try {
         const response = await fetch('/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ingredients, kitchenware, ageGroup, people, cuisine })
+            body: JSON.stringify({ ingredients, kitchenware, ageGroup, people, cuisine, maxCalories })
         });
         const recipes = await response.json();
         renderRecipes(recipes);

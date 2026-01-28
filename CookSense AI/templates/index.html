@@ -28,6 +28,36 @@
                 <div id="ingredientList" class="tags-container"></div>
             </div>
 
+            <div class="input-group">
+                <label>熱量上限 (每人/kcal)</label>
+                <input type="number" id="maxCalories" placeholder="不限 (例如: 600)">
+            </div>
+
+            <section class="input-panel" style="margin-top: 30px; border-left: 5px solid #e74c3c;">
+                <h2><i class="fas fa-camera-retro"></i> 飲食熱量管家</h2>
+                <p>拍下你剛吃的食物，AI 幫你算還剩多少熱量額度。</p>
+                
+                <div style="display: flex; gap: 15px; align-items: center; margin-top: 15px;">
+                    <button id="calCameraBtn" style="background: #e74c3c;">
+                        <i class="fas fa-camera"></i> 上傳照片
+                    </button>
+                    <input type="file" id="calFileInput" accept="image/*" style="display:none">
+                    
+                    <div id="dailyStats" style="flex-grow: 1; text-align: right; font-weight: bold; color: #555;">
+                        每日建議攝取: <span id="targetCal">--</span> kcal
+                    </div>
+                </div>
+
+                <div id="calResultArea" class="hidden" style="margin-top: 20px; padding: 15px; background: #fff5f5; border-radius: 8px;">
+                    <h3 id="foodName"></h3>
+                    <p id="calReason" style="font-size: 0.9em; color: #666;"></p>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+                        <div style="font-size: 1.2em;">估算熱量: <span id="foodCal" style="color: #e74c3c; font-weight:bold;">0</span> kcal</div>
+                        <div style="font-size: 1.2em;">今日剩餘: <span id="remainingCal" style="color: #27ae60; font-weight:bold;">0</span> kcal</div>
+                    </div>
+                </div>
+            </section>
+
             <div class="settings-grid">
                 <div class="input-group">
                     <label>廚具</label>
@@ -57,6 +87,7 @@
                         <option value="western">西式</option>
                         <option value="chinese">中式</option>
                         <option value="japanese">日式</option>
+                        <option value="korean">韓式</option>
                         <option value="italian">義式</option>
                         <option value="mexican">墨式</option>
                     </select>

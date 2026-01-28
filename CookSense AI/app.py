@@ -21,18 +21,30 @@ client = genai.Client(
     http_options={'api_version': 'v1beta'} # 預覽模型需要 beta 路徑
 )
 
-def get_ai_recipes(ingredients, kitchenware, age_group, people, cuisine):
+def get_ai_recipes(ingredients, kitchenware, age_group, people, cuisine, max_calories=None):
     if not ingredients:
         return []
 
-    # 提示詞中再次強調 JSON 格式，這是最保險的
+    # 處理熱量限制的提示詞
+    calorie_instruction = ""
+    if max_calories and int(max_calories) > 0:
+        calorie_instruction = f"每一份的熱量必須嚴格控制在 {max_calories} 大卡以內。"
+    
     prompt = f"""
-        請生成 3 道適合 {people} 人的食譜。
+    請生成 3 道適合 {people} 人的食譜。
     現有食材：{ingredients}
+    廚具：{kitchenware}
     菜系：{cuisine}
+    對象：{age_group}
+    {calorie_instruction}
 
-    請務必返回嚴格格式的 JSON 陣列，每個物件必須包含：
-    {{
+    重要要求：
+    1. 請根據食材的實際熱量進行科學估算，不要隨意填寫數字。
+    2. 請務必返回嚴格格式的 JSON 陣列。
+    
+    JSON 結構範例：
+    [
+      {{
         "id": 1,
         "name": "食譜名稱",
         "difficulty": "簡單",
@@ -40,38 +52,31 @@ def get_ai_recipes(ingredients, kitchenware, age_group, people, cuisine):
         "portions": {people},
         "standard": {{
             "calories": 500,
-            "ingredients": ["食材 A (份量)", "食材 B (份量)"]  <-- 確保這個欄位存在！,
-            "steps": ["步驟 1：內容...", "步驟 2：內容..."]
+            "ingredients": ["食材A (克數)", "食材B (克數)"],
+            "steps": ["步驟1", "步驟2"]
         }},
         "healthy": {{
-            "calories": 400,
-            "ingredients": ["健康版食材 A (份量)", "健康版食材 B (份量)"],
-            "steps": ["健康版步驟 1...", "健康版步驟 2..."]
+            "calories": 350,
+            "ingredients": ["替代食材..."],
+            "steps": ["..."]
         }},
-        "substitutions": [
-            {{"missing": "檸檬", "suggestion": "白醋"}}
-        ]
-    }}
+        "substitutions": [{{"missing": "...", "suggestion": "..."}}]
+      }}
+    ]
     """
 
     try:
-        # 2. 使用目前 2026 年初最建議的穩定模型名稱
         response = client.models.generate_content(
-            model="gemini-2.5-flash", # 或者使用 "gemini-3-flash-preview"
+            model="gemini-2.5-flash",
             contents=prompt,
             config={
                 "response_mime_type": "application/json",
-                "temperature": 0.7
+                "temperature": 0.5 # 降低溫度以獲得更精確的數字
             }
         )
         return json.loads(response.text)
-        
     except Exception as e:
-        # 如果還是報錯，最後的絕招：印出所有可用的模型，讓您知道現在哪個模型活著
-        print(f"!!! 出錯：{e} !!!")
-        print("當前您的 Key 可用的模型列表：")
-        for m in client.models.list():
-            print(f" - {m.name}")
+        print(f"!!! 生成食譜出錯：{e} !!!")
         return []
 
 @app.route('/scan-fridge', methods=['POST'])
@@ -123,6 +128,49 @@ def scan_fridge():
             
         return jsonify({"error": "伺服器內部錯誤", "details": error_msg, "ingredients": []}), 500
 
+@app.route('/analyze-calories', methods=['POST'])
+def analyze_calories():
+    try:
+        if 'image' not in request.files:
+            return jsonify({"error": "未收到圖片"}), 400
+            
+        image_file = request.files['image']
+        img = Image.open(image_file)
+        
+        # 壓縮圖片 (為了配額與速度)
+        img.thumbnail((800, 800))
+        img_byte_arr = io.BytesIO()
+        img.save(img_byte_arr, format='JPEG', quality=70)
+        image_bytes = img_byte_arr.getvalue()
+
+        prompt = """
+        你是一位營養師。請分析這張照片中的食物：
+        1. 辨識食物名稱。
+        2. 估算這整份食物的總熱量 (Total Calories)。
+        
+        請僅回傳此 JSON 格式：
+        {
+            "food_name": "食物名稱",
+            "estimated_calories": 500,
+            "reasoning": "簡短說明估算依據 (例如：一碗白飯約280大卡 + 炸豬排約300大卡)"
+        }
+        """
+
+        response = client.models.generate_content(
+            model="gemini-2.0-flash", # 使用 1.5 以分散配額壓力
+            contents=[
+                prompt,
+                types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg")
+            ],
+            config=types.GenerateContentConfig(response_mime_type="application/json")
+        )
+        
+        return jsonify(json.loads(response.text))
+
+    except Exception as e:
+        print(f"熱量分析失敗: {e}")
+        return jsonify({"error": str(e), "estimated_calories": 0}), 500
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -135,7 +183,8 @@ def generate():
         data.get('kitchenware', []),
         data.get('ageGroup', 'adult'),
         data.get('people', 1),
-        data.get('cuisine', 'western')
+        data.get('cuisine', 'western'),
+        data.get('maxCalories', None) # 接收新參數
     )
     return jsonify(recipes)
 
