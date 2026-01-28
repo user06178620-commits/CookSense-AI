@@ -53,6 +53,11 @@ def get_ai_recipes(ingredients, kitchenware, age_group, people, cuisine, max_cal
     3. 難度欄位請回傳「簡單」、「中等」或「困難」。
     4. 食材與步驟必須是繁體中文。
     5. 即使是替換建議也禁止出現：{avoid_foods}。
+    6. **熱量常識**：
+        - 請基於真實科學進行熱量估算。
+        - 除非有大量油脂、澱粉或肉類，否則單份熱量不應隨意超過 800 kcal。
+        - 嚴格遵守用戶限制：{calorie_instruction if max_calories else "無限制"}。
+    7. **烹飪時間**：任何食譜的總時長 (含準備) 絕對不可超過 210 分鐘 (3.5 小時)。
     
     JSON 結構範例：
     [

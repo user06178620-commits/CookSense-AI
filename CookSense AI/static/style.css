@@ -292,15 +292,61 @@ li { margin-bottom: 8px; }
 
 .save-recipe-btn {
     position: absolute;
-    top: 20px; right: 20px;
-    background: transparent;
-    color: var(--gray);
-    font-size: 1.5rem;
-    padding: 0;
+    top: 15px;
+    right: 15px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: #9ca3af; /* 預設灰色 */
+    z-index: 10;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.save-recipe-btn:hover {
+    transform: scale(1.1);
+    background: #fff1f2;
+    color: #f43f5e;
+    border-color: #fecdd3;
 }
 
 .save-recipe-btn.active {
-    color: var(--danger);
+    background: #fff1f2;
+    color: #f43f5e;
+    border-color: #f43f5e;
+}
+
+.save-recipe-btn.active i {
+    font-weight: 900; /* 使用 FontAwesome 的 Solid 實心效果 */
+}
+
+.saved-item {
+    margin-bottom: 15px;
+    padding: 15px;
+    background: #f9fafb;
+    border-radius: 8px;
+    border-left: 4px solid var(--primary);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.saved-item details summary {
+    outline: none;
+    font-weight: 600;
+    transition: color 0.2s;
+}
+
+.saved-item details summary:hover {
+    color: var(--secondary);
+}
+
+.saved-item details[open] summary {
+    margin-bottom: 8px;
 }
 
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }

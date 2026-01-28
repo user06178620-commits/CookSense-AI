@@ -1,5 +1,12 @@
+// script.js
+
+// --- 1. 全域變數宣告 ---
 let ingredients = [];
 let savedRecipes = JSON.parse(localStorage.getItem('cooksense_saved')) || [];
+let currentEstimatedCalories = 0;
+
+// 新增這行：用來暫存當前生成的食譜，讓 ID 可以查找到完整資料
+let currentRecipesMap = {};
 
 const DAILY_INTAKE = {
     'younger': 1800, // 發育期/小孩
@@ -7,6 +14,7 @@ const DAILY_INTAKE = {
     'older': 1600    // 高齡者
 };
 
+// --- 2. 食材標籤功能 ---
 function addIngredient(val = null) {
     const input = document.getElementById('ingredientInput');
     const value = val || input.value.trim();
@@ -33,54 +41,68 @@ function removeIngredient(ing) {
     renderTags();
 }
 
-// --- 監聽器部分：解決 "Cannot read properties of null (reading 'click')" ---
+// --- 3. 頁面初始化與監聽器 ---
 document.addEventListener('DOMContentLoaded', () => {
+    // 冰箱食材相機
     const cameraBtn = document.getElementById('cameraBtn');
     const fileInput = document.getElementById('fileInput');
 
     if (cameraBtn && fileInput) {
-        // 當使用者點擊顯眼的相機按鈕時，觸發隱藏的檔案選擇器
-        cameraBtn.addEventListener('click', () => {
-            fileInput.click();
-        });
-
-        // 當檔案選擇器偵測到檔案改變（使用者選好了照片）
-        fileInput.addEventListener('change', function() {
-            uploadImage(this); // 呼叫你原本寫好的上傳函式
-        });
+        cameraBtn.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', function() { uploadImage(this); });
     } else {
-        console.error("錯誤：找不到 ID 為 'cameraBtn' 或 'fileInput' 的元素。請檢查 index.html。");
+        console.error("錯誤：找不到 ID 為 'cameraBtn' 或 'fileInput' 的元素。");
     }
 
+    // 熱量相機與年齡選擇
     const calBtn = document.getElementById('calCameraBtn');
     const calInput = document.getElementById('calFileInput');
     const ageSelect = document.getElementById('ageGroup');
-    const targetDisplay = document.getElementById('targetCal');
-
-    function updateTargetCal() {
-        const age = ageSelect.value;
-        targetDisplay.innerText = DAILY_INTAKE[age];
+    
+    // 綁定年齡變更事件：現在變更年齡會同時更新目標與剩餘熱量
+    if (ageSelect) {
+        ageSelect.addEventListener('change', updateCalorieStats);
+        updateCalorieStats(); // 初始化顯示
     }
-    ageSelect.addEventListener('change', updateTargetCal);
-    updateTargetCal(); // 初始執行一次
 
     if (calBtn && calInput) {
         calBtn.addEventListener('click', () => calInput.click());
-        calInput.addEventListener('change', function() {
-            analyzeFoodCalories(this);
-            });
+        calInput.addEventListener('change', function() { analyzeFoodCalories(this); });
     }
+    
+    // 初始化收藏數量
     updateSavedCount();
 }); 
 
+// --- 4. 核心功能函式 ---
 
-// --- 你原本的 uploadImage 函式 (保持不變) ---
+// 統一管理熱量計算 (解決問題 3：動態更新)
+function updateCalorieStats() {
+    const ageSelect = document.getElementById('ageGroup');
+    const targetDisplay = document.getElementById('targetCal');
+    const remainingEl = document.getElementById('remainingCal');
+    
+    if (!ageSelect) return;
+
+    const age = ageSelect.value;
+    const dailyLimit = DAILY_INTAKE[age];
+    
+    // 更新每日建議顯示
+    if (targetDisplay) targetDisplay.innerText = dailyLimit;
+
+    // 重新計算剩餘熱量 (使用全域變數 currentEstimatedCalories)
+    const remaining = dailyLimit - currentEstimatedCalories;
+    
+    if (remainingEl) {
+        remainingEl.innerText = remaining;
+        remainingEl.style.color = remaining < 0 ? '#c0392b' : '#27ae60';
+    }
+}
+
 async function uploadImage(input) {
     if (!input.files || !input.files[0]) return;
-
     const btn = document.getElementById('cameraBtn');
     const originalText = btn.innerHTML;
-    
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 辨識中...';
     btn.disabled = true;
 
@@ -88,13 +110,8 @@ async function uploadImage(input) {
     formData.append('image', input.files[0]);
 
     try {
-        const response = await fetch('/scan-fridge', {
-            method: 'POST',
-            body: formData
-        });
-        
+        const response = await fetch('/scan-fridge', { method: 'POST', body: formData });
         if (!response.ok) throw new Error("辨識失敗");
-        
         const data = await response.json();
         
         if (data.ingredients && data.ingredients.length > 0) {
@@ -114,30 +131,33 @@ async function uploadImage(input) {
 
 async function analyzeFoodCalories(input) {
     if (!input.files || !input.files[0]) return;
-
     const btn = document.getElementById('calCameraBtn');
     const originalText = btn.innerHTML;
     const resultArea = document.getElementById('calResultArea');
     
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 分析中...';
     btn.disabled = true;
-    resultArea.classList.add('hidden'); // 先隱藏舊結果
+    resultArea.classList.add('hidden'); 
 
     const formData = new FormData();
     formData.append('image', input.files[0]);
 
     try {
-        const response = await fetch('/analyze-calories', {
-            method: 'POST',
-            body: formData
-        });
-        
+        const response = await fetch('/analyze-calories', { method: 'POST', body: formData });
         if (!response.ok) throw new Error("API 請求失敗");
         
         const data = await response.json();
         
-        // 渲染結果
-        renderCalorieResult(data);
+        // 更新全域變數，並觸發介面刷新
+        currentEstimatedCalories = data.estimated_calories || 0;
+        
+        document.getElementById('foodName').innerText = data.food_name || "未知食物";
+        document.getElementById('calReason').innerText = data.reasoning || "";
+        document.getElementById('foodCal').innerText = currentEstimatedCalories;
+        document.getElementById('calResultArea').classList.remove('hidden');
+
+        // 呼叫統一的計算函式
+        updateCalorieStats();
 
     } catch (error) {
         console.error(error);
@@ -149,52 +169,33 @@ async function analyzeFoodCalories(input) {
     }
 }
 
-function renderCalorieResult(data) {
-    const ageGroup = document.getElementById('ageGroup').value;
-    const dailyLimit = DAILY_INTAKE[ageGroup];
-    const estimated = data.estimated_calories || 0;
-    const remaining = dailyLimit - estimated;
-
-    document.getElementById('foodName').innerText = data.food_name || "未知食物";
-    document.getElementById('calReason').innerText = data.reasoning || "";
-    document.getElementById('foodCal').innerText = estimated;
-    
-    const remainingEl = document.getElementById('remainingCal');
-    remainingEl.innerText = remaining;
-    
-    // 如果超標，變紅色
-    remainingEl.style.color = remaining < 0 ? '#c0392b' : '#27ae60';
-
-    document.getElementById('calResultArea').classList.remove('hidden');
-}
-
-async function generateRecipes() {
+async function generateRecipes(isAppend = false) {
     if (ingredients.length === 0) {
         alert("Please add at least one ingredient!");
         return;
     }
-    document.getElementById('loader').classList.remove('hidden');
-    document.getElementById('resultsArea').innerHTML = '';
-
-    const kitchenware = Array.from(document.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
-    const ageGroup = document.getElementById('ageGroup').value;
-    const people = document.getElementById('peopleCount').value;
-    const cuisine = document.getElementById('cuisine').value;
-    const maxCalories = document.getElementById('maxCalories').value;
-    const difficulty = document.getElementById('difficulty').value; // 確保有抓到值
-    const avoidFoods = document.getElementById('avoidFoods').value; // 新增過敏原
-
+    
+    const loader = document.getElementById('loader');
     const loadMoreBtn = document.getElementById('loadMoreBtn');
+    const resultsArea = document.getElementById('resultsArea');
+    
+    loader.classList.remove('hidden');
+    
+    if (!isAppend) {
+        resultsArea.innerHTML = ''; // 如果不是載入更多，先清空
+        if(loadMoreBtn) loadMoreBtn.classList.add('hidden');
+    }
+
     const bodyData = { 
-            ingredients, 
-            kitchenware, 
-            ageGroup, 
-            people, 
-            cuisine, 
-            difficulty, 
-            avoidFoods, // 傳送給後端
-            maxCalories 
-        };
+        ingredients, 
+        kitchenware: Array.from(document.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value), 
+        ageGroup: document.getElementById('ageGroup').value, 
+        people: document.getElementById('peopleCount').value, 
+        cuisine: document.getElementById('cuisine').value, 
+        difficulty: document.getElementById('difficulty').value, 
+        avoidFoods: document.getElementById('avoidFoods').value,
+        maxCalories: document.getElementById('maxCalories').value 
+    };
 
     try {
         const response = await fetch('/generate', {
@@ -204,46 +205,55 @@ async function generateRecipes() {
         });
         const recipes = await response.json();
         renderRecipes(recipes);
+        
         if (loadMoreBtn) {
-            loadMoreBtn.style.display = 'block'; // 直接操作 Style 權重最高
+            loadMoreBtn.style.display = 'block'; 
             loadMoreBtn.classList.remove('hidden');
         }  
     } catch (error) {
         console.error(error);
         alert("Error generating recipes.");
     } finally {
-        document.getElementById('loader').classList.add('hidden');
+        loader.classList.add('hidden');
     }
 }
 
 function renderRecipes(recipes) {
     const container = document.getElementById('resultsArea');
     if (!recipes || recipes.length === 0) {
-        container.innerHTML = "<p style='text-align:center'>未找到食譜，請嘗試其他食材。</p>";
+        // 如果是清空狀態，顯示提示
+        if (container.innerHTML === '') {
+            container.innerHTML = "<p style='text-align:center'>未找到食譜，請嘗試其他食材。</p>";
+        }
         return;
     }
 
-    recipes.forEach(recipe => {
-        // 在卡片渲染的循環中更新這部分：
+    // 清空舊結果
+    container.innerHTML = ''; 
 
-        const standardIngs = (recipe.standard && recipe.standard.ingredients) ? recipe.standard.ingredients : [];
-        const healthyIngs = (recipe.healthy && recipe.healthy.ingredients) ? recipe.healthy.ingredients : [];
+    recipes.forEach((recipe, index) => {
+        // --- 修正重點：使用 encodeURIComponent 進行安全編碼 ---
+        // 這會將 JSON 轉為像 "%7B%22name%22..." 這樣的安全字串，絕對不會跟 HTML 引號衝突
+        const safeRecipeString = encodeURIComponent(JSON.stringify(recipe));
+        
+        // 檢查是否已收藏 (確保 ID 轉為字串比對)
+        const isSaved = savedRecipes.some(r => String(r.id) === String(recipe.id));
+
+        const standardIngs = recipe.standard?.ingredients || [];
+        const healthyIngs = recipe.healthy?.ingredients || [];
         const substitutions = recipe.substitutions || [];
 
-        const isSaved = savedRecipes.some(r => r.id === recipe.id);
-        const saveBtnHtml = `
-            <button class="save-recipe-btn ${isSaved ? 'active' : ''}" 
-                    onclick='toggleSave("${recipe.id}", ${JSON.stringify(recipe).replace(/'/g, "&apos;")})'>
-                <i class="fas fa-heart"></i>
-            </button>
-        `;
-
+        // 建立 HTML
         const html = `
-            <div class="recipe-card">
-                <div class="recipe-header">
-                    ${saveBtnHtml}
+            <div class="recipe-card" style="animation-delay: ${index * 0.15}s">
+                <div class="recipe-header" style="position: relative;">
+                     <button class="save-recipe-btn ${isSaved ? 'active' : ''}" 
+                            data-id="${recipe.id}"
+                            onclick="toggleSave('${recipe.id}', '${safeRecipeString}')">
+                        <i class="${isSaved ? 'fas' : 'far'} fa-heart"></i>
+                    </button>
                     <h2>${recipe.name || '未命名食譜'}</h2>
-                    <div style="color:#666; font-size:0.9em">
+                    <div class="recipe-meta" style="color:#666; font-size:0.9em">
                         <i class="fas fa-clock"></i> ${recipe.time || '--'} &nbsp;|&nbsp; 
                         <i class="fas fa-chart-line"></i> ${recipe.difficulty || '--'} &nbsp;|&nbsp; 
                         <i class="fas fa-user-friends"></i> 份量: ${recipe.portions || '--'}
@@ -254,38 +264,32 @@ function renderRecipes(recipes) {
                         <div class="version-title">標準版 <span class="calories">${recipe.standard?.calories || 0} kcal</span></div>
                         <strong><i class="fas fa-shopping-basket"></i> 食材:</strong>
                         <ul>${standardIngs.map(a => `<li>${a}</li>`).join('')}</ul>
-
-                        <strong><i class="fas fa-list-ol"></i> 料理步驟:</strong>
-                        <ol class="step-list">
-                            ${recipe.standard?.steps?.map(step => `<li>${step}</li>`).join('') || '<li>暫無步驟資訊</li>'}
-                        </ol>
-                        
+                        <strong><i class="fas fa-list-ol"></i> 步驟:</strong>
+                        <ol class="step-list">${recipe.standard?.steps?.map(s => `<li>${s}</li>`).join('') || ''}</ol>
                     </div>
                     <div class="version-box healthy-ver">
                         <div class="version-title"><i class="fas fa-leaf"></i> 健康版 <span class="calories">${recipe.healthy?.calories || 0} kcal</span></div>
                         <strong><i class="fas fa-shopping-basket"></i> 食材:</strong>
                         <ul>${healthyIngs.map(a => `<li>${a}</li>`).join('')}</ul>
-                        <strong><i class="fas fa-list-ol"></i> 料理步驟:</strong>
-                        <ol class="step-list">
-                            ${recipe.healthy?.steps?.map(step => `<li>${step}</li>`).join('') || '<li>同標準版，建議減少油鹽。</li>'}
-                        </ol>
-                        
+                        <strong><i class="fas fa-list-ol"></i> 步驟:</strong>
+                        <ol class="step-list">${recipe.healthy?.steps?.map(s => `<li>${s}</li>`).join('') || ''}</ol>
                     </div>
                 </div>
                 <div class="substitutions">
-                    <strong><i class="fas fa-exchange-alt"></i> 食材替換建議:</strong><br>
-                    ${substitutions.length > 0 ? substitutions.map(s => `缺少 <u>${s.missing}</u>? 試試 <b>${s.suggestion}</b>`).join(' &nbsp;|&nbsp; ') : '無建議'}
+                    <strong><i class="fas fa-exchange-alt"></i> 替換建議:</strong><br>
+                    ${substitutions.length > 0 ? substitutions.map(s => `缺 <u>${s.missing}</u>? 試試 <b>${s.suggestion}</b>`).join(' | ') : '無建議'}
                 </div>
             </div>`;
-        container.innerHTML += html;
+        
+        container.insertAdjacentHTML('beforeend', html);
     });
 }
 
+// --- 5. 收藏功能邏輯 ---
+
 function updateSavedCount() {
     const countEl = document.getElementById('savedCount');
-    if (countEl) {
-        countEl.innerText = savedRecipes.length;
-    }
+    if (countEl) countEl.innerText = savedRecipes.length;
 }
 
 function toggleSavedRecipes() {
@@ -296,27 +300,62 @@ function toggleSavedRecipes() {
     }
 }
 
-// 收藏/取消收藏邏輯
 function toggleSave(recipeId, recipeData) {
-    const index = savedRecipes.findIndex(r => r.id === recipeId);
+    let dataToSave = recipeData;
+
+    // --- 修正重點：解碼資料 ---
+    if (typeof recipeData === 'string') {
+        try {
+            // 使用 decodeURIComponent 還原 JSON 字串，再轉為物件
+            dataToSave = JSON.parse(decodeURIComponent(recipeData));
+        } catch (e) {
+            console.error("食譜資料解析失敗:", e);
+            return;
+        }
+    }
+
+    // 尋找是否已存在 (轉為字串比較以防萬一)
+    const index = savedRecipes.findIndex(r => String(r.id) === String(recipeId));
+    
+    // 尋找畫面上所有對應的按鈕 (包含主列表和收藏列表中的刪除鈕)
+    const btns = document.querySelectorAll(`.save-recipe-btn[data-id="${recipeId}"]`);
     
     if (index === -1) {
-        savedRecipes.push(recipeData);
-        alert('已加入收藏！');
+        // 加入收藏
+        savedRecipes.push(dataToSave);
+        btns.forEach(btn => {
+            btn.classList.add('active');
+            const icon = btn.querySelector('i');
+            if(icon) {
+                icon.classList.remove('far');
+                icon.classList.add('fas');
+            }
+        });
     } else {
+        // 移除收藏
         savedRecipes.splice(index, 1);
-        alert('已從收藏中移除。');
+        btns.forEach(btn => {
+            btn.classList.remove('active');
+            const icon = btn.querySelector('i');
+            if(icon) {
+                icon.classList.remove('fas');
+                icon.classList.add('far');
+            }
+        });
     }
     
+    // 存入 LocalStorage 並更新計數
     localStorage.setItem('cooksense_saved', JSON.stringify(savedRecipes));
     updateSavedCount();
     
-    // 更新按鈕樣式
-    const btn = document.querySelector(`[onclick*="toggleSave('${recipeId}'"]`);
-    if(btn) btn.classList.toggle('active');
+    // 如果收藏面板正開著，即時刷新列表內容
+    const panel = document.getElementById('savedRecipesPanel');
+    if (panel && !panel.classList.contains('hidden')) {
+        renderSavedList();
+    }
 }
 
-// 渲染收藏清單
+// 解決問題 2：渲染收藏清單時顯示詳細資訊
 function renderSavedList() {
     const list = document.getElementById('savedList');
     if (!list) return;
@@ -326,14 +365,30 @@ function renderSavedList() {
     savedRecipes.forEach(recipe => {
         const item = document.createElement('div');
         item.className = 'saved-item';
-        item.style.cssText = 'margin-bottom: 15px; padding: 15px; background: #f9fafb; border-radius: 8px; border-left: 4px solid var(--primary);';
+        
+        // 準備詳細資料的 HTML
+        const standardSteps = recipe.standard?.steps?.map(s => `<li>${s}</li>`).join('') || '';
+        const standardIngs = recipe.standard?.ingredients?.join(', ') || '';
+
         item.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: start;">
-                <div>
-                    <strong style="display: block; color: var(--dark);">${recipe.name}</strong>
-                    <small style="color: var(--gray);">${recipe.time} | ${recipe.difficulty}</small>
+                <div style="width: 100%;">
+                    <strong>${recipe.name}</strong>
+                    <div style="font-size:0.85em; color:#666; margin-bottom:5px;">
+                        <i class="fas fa-clock"></i> ${recipe.time} | 
+                        <i class="fas fa-fire"></i> ${recipe.standard?.calories || 0} kcal
+                    </div>
+                    
+                    <details style="font-size: 0.9em; margin-top: 5px; color: #444; cursor: pointer;">
+                        <summary style="color: var(--primary);">查看食材與步驟</summary>
+                        <div style="margin-top: 8px; padding-left: 10px; border-left: 2px solid #eee;">
+                            <p><strong>食材:</strong> ${standardIngs}</p>
+                            <p><strong>步驟:</strong></p>
+                            <ol style="padding-left: 15px; margin: 5px 0;">${standardSteps}</ol>
+                        </div>
+                    </details>
                 </div>
-                <button onclick="removeSaved('${recipe.id}')" style="color:var(--danger); background:none; padding:0; font-size:1.2rem;">
+                <button onclick="removeSaved('${recipe.id}')" style="color:var(--danger); background:none; cursor:pointer; padding:0 0 0 10px;">
                     <i class="fas fa-trash-alt"></i>
                 </button>
             </div>
@@ -343,10 +398,14 @@ function renderSavedList() {
 }
 
 function removeSaved(id) {
-    savedRecipes = savedRecipes.filter(r => r.id !== id);
+    savedRecipes = savedRecipes.filter(r => String(r.id) !== String(id));
     localStorage.setItem('cooksense_saved', JSON.stringify(savedRecipes));
     updateSavedCount();
     renderSavedList();
-    const btn = document.querySelector(`[onclick*="toggleSave('${id}'"]`);
-    if(btn) btn.classList.remove('active');
+    
+    const btns = document.querySelectorAll(`.save-recipe-btn[data-id="${id}"]`);
+    btns.forEach(btn => {
+        btn.classList.remove('active');
+        btn.querySelector('i').className = 'far fa-heart';
+    });
 }
