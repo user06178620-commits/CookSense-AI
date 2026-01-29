@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;800&display=swap');
+
 :root {
     --primary: #4F46E5; /* 現代感靛藍色 */
     --secondary: #4338ca;
@@ -30,21 +32,42 @@ body {
 header {
     text-align: center;
     margin-bottom: 40px;
-    padding: 20px 0;
+    padding: 30px 0;
 }
 
 header h1 {
-    font-size: 2.5rem;
-    color: var(--primary);
-    margin: 0;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 2.8rem;
+    font-weight: 400;      /* 先設為細體 */
+    color: var(--dark);
+    letter-spacing: -1px;  /* 緊縮字距更有品牌感 */
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+header h1 i {
+    color: var(--primary); /* 圖標顏色 */
+    font-size: 2.4rem;
+}
+
+header h1 span {
     font-weight: 800;
-    letter-spacing: -1px;
+    color: var(--primary);
+    -webkit-text-fill-color: var(--primary); /* 覆蓋上面的漸層效果 */
+    margin-left: 2px;
 }
 
 header p {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 400;
     color: var(--gray);
-    font-size: 1.1rem;
-    margin-top: 10px;
+    letter-spacing: 2px;   /* 副標題字距拉開會變得很優雅 */
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    margin-top: -5px;
 }
 
 /* Input Panel & Cards */

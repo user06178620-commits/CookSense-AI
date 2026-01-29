@@ -169,20 +169,24 @@ async function analyzeFoodCalories(input) {
     }
 }
 
-async function generateRecipes(isAppend = false) {
+async function generateRecipes(isLoadMore = false) {
     if (ingredients.length === 0) {
-        alert("Please add at least one ingredient!");
+        alert("請先輸入冰箱裡的食材！");
         return;
     }
     
     const loader = document.getElementById('loader');
-    const loadMoreBtn = document.getElementById('loadMoreBtn');
+    const btn = document.getElementById('generateBtn');
     const resultsArea = document.getElementById('resultsArea');
     
     loader.classList.remove('hidden');
+    loader.classList.add('show-flex');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在思考中...';
     
-    if (!isAppend) {
-        resultsArea.innerHTML = ''; // 如果不是載入更多，先清空
+    if (!isLoadMore) {
+        resultsArea.innerHTML = '';
+        currentRecipesMap = {}; // 清空暫存
         if(loadMoreBtn) loadMoreBtn.classList.add('hidden');
     }
 
@@ -206,6 +210,15 @@ async function generateRecipes(isAppend = false) {
         const recipes = await response.json();
         renderRecipes(recipes);
         
+        const uniqueData = recipes.map(recipe => ({
+            ...recipe,
+            // 使用 "時間戳 + 亂數" 確保 ID 絕對唯一 (例如: recipe_17273849_xk3la)
+            id: `recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        }));
+
+        renderRecipes(uniqueData);
+
+        
         if (loadMoreBtn) {
             loadMoreBtn.style.display = 'block'; 
             loadMoreBtn.classList.remove('hidden');
@@ -215,6 +228,9 @@ async function generateRecipes(isAppend = false) {
         alert("Error generating recipes.");
     } finally {
         loader.classList.add('hidden');
+        loader.classList.remove('show-flex');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-magic"></i> 用 AI 生成食譜';
     }
 }
 
