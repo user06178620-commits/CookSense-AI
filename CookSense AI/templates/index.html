@@ -60,11 +60,18 @@
                 </div>
 
                 <div id="calResultArea" class="hidden" style="margin-top: 20px; padding: 15px; background: #fff5f5; border-radius: 8px;">
-                    <h3 id="foodName"></h3>
-                    <p id="calReason" style="font-size: 0.9em; color: #666;"></p>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
-                        <div style="font-size: 1.2em;">估算熱量: <span id="foodCal" style="color: #e74c3c; font-weight:bold;">0</span> kcal</div>
-                        <div style="font-size: 1.2em;">今日剩餘: <span id="remainingCal" style="color: #27ae60; font-weight:bold;">0</span> kcal</div>
+                    
+                    <div id="foodHistoryList"></div>
+
+                    <div style="border-top: 2px solid #eccce2; margin-top: 15px; padding-top: 15px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                            <span>已攝取總熱量:</span>
+                            <span style="font-weight: bold; color: #d63031;"><span id="totalConsumed">0</span> kcal</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 1.2em;">
+                            <strong>今日剩餘額度:</strong>
+                            <span id="remainingCal" style="color: #27ae60; font-weight:bold;">0</span> kcal
+                        </div>
                     </div>
                 </div>
             </section>

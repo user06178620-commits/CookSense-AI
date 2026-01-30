@@ -3,6 +3,7 @@
 // --- 1. 全域變數宣告 ---
 let ingredients = [];
 let savedRecipes = JSON.parse(localStorage.getItem('cooksense_saved')) || [];
+let consumedFoodList = [];
 let currentEstimatedCalories = 0;
 
 // 新增這行：用來暫存當前生成的食譜，讓 ID 可以查找到完整資料
@@ -81,21 +82,30 @@ function updateCalorieStats() {
     const ageSelect = document.getElementById('ageGroup');
     const targetDisplay = document.getElementById('targetCal');
     const remainingEl = document.getElementById('remainingCal');
+    const totalConsumedEl = document.getElementById('totalConsumed');
     
     if (!ageSelect) return;
 
     const age = ageSelect.value;
     const dailyLimit = DAILY_INTAKE[age];
     
+    // 計算目前累積的總熱量
+    const currentTotal = consumedFoodList.reduce((sum, item) => sum + item.calories, 0);
+
     // 更新每日建議顯示
     if (targetDisplay) targetDisplay.innerText = dailyLimit;
+    
+    // 更新已攝取總量顯示
+    if (totalConsumedEl) totalConsumedEl.innerText = currentTotal;
 
-    // 重新計算剩餘熱量 (使用全域變數 currentEstimatedCalories)
-    const remaining = dailyLimit - currentEstimatedCalories;
+    // 重新計算剩餘熱量
+    const remaining = dailyLimit - currentTotal;
     
     if (remainingEl) {
         remainingEl.innerText = remaining;
         remainingEl.style.color = remaining < 0 ? '#c0392b' : '#27ae60';
+        // 如果剩餘熱量是負的，加上驚嘆號提示
+        if (remaining < 0) remainingEl.innerText += " (已超標!)";
     }
 }
 
@@ -137,7 +147,9 @@ async function analyzeFoodCalories(input) {
     
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 分析中...';
     btn.disabled = true;
-    resultArea.classList.add('hidden'); 
+    
+    // 注意：這裡不再先隱藏 resultArea，因為使用者可能想看著舊紀錄等新結果
+    resultArea.classList.remove('hidden'); 
 
     const formData = new FormData();
     formData.append('image', input.files[0]);
@@ -148,15 +160,35 @@ async function analyzeFoodCalories(input) {
         
         const data = await response.json();
         
-        // 更新全域變數，並觸發介面刷新
-        currentEstimatedCalories = data.estimated_calories || 0;
+        const newCalories = data.estimated_calories || 0;
         
-        document.getElementById('foodName').innerText = data.food_name || "未知食物";
-        document.getElementById('calReason').innerText = data.reasoning || "";
-        document.getElementById('foodCal').innerText = currentEstimatedCalories;
-        document.getElementById('calResultArea').classList.remove('hidden');
+        // 1. 將新資料推入陣列
+        consumedFoodList.push({
+            name: data.food_name || "未知食物",
+            calories: newCalories,
+            reason: data.reasoning || ""
+        });
 
-        // 呼叫統一的計算函式
+        // 2. 生成新項目的 HTML (類似收據的項目)
+        const newItemHtml = `
+            <div class="food-item-entry" style="border-bottom: 1px dashed #ccc; padding: 10px 0; animation: fadeIn 0.5s;">
+                <div style="display: flex; justify-content: space-between; font-weight: bold; color: #333;">
+                    <span>${data.food_name || "未知食物"}</span>
+                    <span>${newCalories} kcal</span>
+                </div>
+                <div style="font-size: 0.85em; color: #666; margin-top: 4px;">
+                    ${data.reasoning || "AI 估算結果"}
+                </div>
+            </div>
+        `;
+
+        // 3. 插入到列表中 (beforeend = 加在最後面)
+        const listContainer = document.getElementById('foodHistoryList');
+        if(listContainer) {
+            listContainer.insertAdjacentHTML('beforeend', newItemHtml);
+        }
+
+        // 4. 更新統計數據
         updateCalorieStats();
 
     } catch (error) {
