@@ -1,4 +1,5 @@
-flask
+Flask
 gunicorn
-google-genai python-dotenv Flask
+google-genai
 Pillow
+python-dotenv
