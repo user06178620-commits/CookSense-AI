@@ -58,6 +58,8 @@ def get_ai_recipes(ingredients, kitchenware, age_group, people, cuisine, max_cal
         - 除非有大量油脂、澱粉或肉類，否則單份熱量不應隨意超過 800 kcal。
         - 嚴格遵守用戶限制：{calorie_instruction if max_calories else "無限制"}。
     7. **烹飪時間**：任何食譜的總時長 (含準備) 絕對不可超過 210 分鐘 (3.5 小時)。
+    8. 標準版與健康版食譜的步驟必須各自完全寫出
+    9. 若食譜中有食材可替換盡可能於替換建議區提出來
     
     JSON 結構範例：
     [

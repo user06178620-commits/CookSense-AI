@@ -165,7 +165,7 @@ button {
 #savedRecipesPanel {
     position: fixed;
     top: 0; right: 0;
-    width: 400px; height: 100%;
+    width: 320px; height: 100%;
     background: var(--white);
     box-shadow: -5px 0 15px rgba(0,0,0,0.1);
     z-index: 1000;
